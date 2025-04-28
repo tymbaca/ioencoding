@@ -14,8 +14,8 @@ func main() {
     myObj := // ... take your object
 
     // Put it inside of encoder, similar to stdlib xml/json
-	r := ioxml.NewEncoder(myobj).Indent("", "  ").Encode()
-	defer r.Close()
+    r := ioxml.NewEncoder(myobj).Indent("", "  ").Encode()
+    defer r.Close()
 
     // use r as any io.Reader
 }
