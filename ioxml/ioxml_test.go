@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type RecordBook struct {
@@ -28,20 +30,28 @@ func TestEncoder(t *testing.T) {
 		},
 	}
 
+	gsBefore := runtime.NumGoroutine()
+
 	prefix := ""
 	indent := "  "
 	r := NewEncoder(rb).Indent(prefix, indent).Encode()
+	defer r.Close()
+
+	gsMiddle := runtime.NumGoroutine()
+	require.Equal(t, gsBefore+1, gsMiddle, "encoder goroutine must spawn when reader created, (before %d, after %d)", gsBefore, gsMiddle)
 
 	buf := bytes.NewBuffer(nil)
 	io.Copy(buf, r)
-	r.Close()
+
+	gsAfter := runtime.NumGoroutine()
+	require.Equal(t, gsBefore, gsAfter, "encoder goroutine must exit after reader close, (before %d, after %d)", gsBefore, gsAfter)
 
 	expect, err := xml.MarshalIndent(rb, prefix, indent)
 	if err != nil {
 		panic(err)
 	}
 
-	assert(t, string(expect), buf.String())
+	require.Equal(t, string(expect), buf.String())
 }
 
 func TestEncoder_ReaderClose(t *testing.T) {
@@ -66,13 +76,5 @@ func TestEncoder_ReaderClose(t *testing.T) {
 	time.Sleep(1 * time.Millisecond)
 	after := runtime.NumGoroutine()
 
-	if after != before-1 {
-		t.Fatalf("encoder goroutine must exit after reader close, (before %d, after %d)", before, after)
-	}
-}
-
-func assert[T comparable](t *testing.T, expect, actual T) {
-	if expect != actual {
-		t.Fatalf("'%v'\n\n    must be equal to\n\n'%v'", actual, expect)
-	}
+	require.Equal(t, before-1, after, "encoder goroutine must exit after reader close, (before %d, after %d)", before, after)
 }
