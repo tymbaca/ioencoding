@@ -54,6 +54,41 @@ func TestEncoder(t *testing.T) {
 	require.Equal(t, string(expect), buf.String())
 }
 
+func TestEncoderWithHeader(t *testing.T) {
+	rb := RecordBook{
+		Records: []Record{
+			{Key: "k1", Val: "v1"},
+			{Key: "k2", Val: "v2"},
+			{Key: "k3", Val: "v3"},
+			{Key: "k4", Val: "v4"},
+		},
+	}
+
+	gsBefore := runtime.NumGoroutine()
+
+	prefix := ""
+	indent := "  "
+	r := NewEncoder(rb).WithHeader(true).Indent(prefix, indent).Encode()
+	defer r.Close()
+
+	gsMiddle := runtime.NumGoroutine()
+	require.Equal(t, gsBefore+1, gsMiddle, "encoder goroutine must spawn when reader created, (before %d, after %d)", gsBefore, gsMiddle)
+
+	buf := bytes.NewBuffer(nil)
+	io.Copy(buf, r)
+
+	gsAfter := runtime.NumGoroutine()
+	require.Equal(t, gsBefore, gsAfter, "encoder goroutine must exit after reader close, (before %d, after %d)", gsBefore, gsAfter)
+
+	expectBody, err := xml.MarshalIndent(rb, prefix, indent)
+	if err != nil {
+		panic(err)
+	}
+	expect := append([]byte(xml.Header), expectBody...)
+
+	require.Equal(t, string(expect), buf.String())
+}
+
 func TestEncoder_ReaderClose(t *testing.T) {
 	rb := RecordBook{
 		Records: []Record{
